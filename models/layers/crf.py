@@ -119,7 +119,7 @@ class CRF(nn.Module):
 
         Args:
             emissions (torch.Tensor): (seq_length, batch_size, num_tags) 发射分数
-            tags (torch.LongTensor): (seq_length, batch_size) 转移分数
+            tags (torch.LongTensor): (seq_length, batch_size)  每个 token 的标签
             mask (torch.ByteTensor): (seq_length, batch_size) mask 矩阵
 
         Returns:
@@ -145,6 +145,31 @@ class CRF(nn.Module):
         score += self.end_transitions[last_tags]
         return score
 
-    def _compute_normalizer(emissions: torch.Tensor,
+    def _compute_normalizer(self, emissions: torch.Tensor,
                             mask: torch.ByteTensor) -> torch.Tensor:
-        pass
+        """计算 batch setences 在当前发射分数下的总得分(规范化因子)
+
+        Args:
+            emissions (torch.Tensor): (seq_length, batch_size, num_tags) 发射分数
+            mask (torch.ByteTensor): (seq_length, batch_size) mask 矩阵
+
+        Returns:
+            torch.Tensor: (batch_size,)
+        """
+        seq_length = emissions.size()[0]
+        # batch_size = emissions.size()[1]
+        # shape: (batch_size, num_tags)
+        score = self.start_transitions + emissions[0]
+        # TODO 此处是否需要 logsumexp?
+        for i in range(1, seq_length):
+            # shape: (batch_size, num_tags, 1)
+            broadcast_score = score.unsqueeze(2)
+            # shape: (batch_size, 1, num_tags)
+            broadcast_emissions = emissions[i].unsqueeze(1)
+            next_score = self.transitions + broadcast_score
+            next_score = next_score + broadcast_emissions
+            next_score = torch.logsumexp(next_score, dim=1)
+            score = torch.where(mask[i].unsqueeze(1), next_score, score)
+        score += self.end_transitions
+        score = torch.logsumexp(score)
+        return score
