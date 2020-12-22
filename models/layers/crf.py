@@ -45,6 +45,14 @@ class CRF(nn.Module):
                 tags: torch.LongTensor,
                 mask: Optional[torch.ByteTensor] = None,
                 reduction: str = "mean") -> torch.Tensor:
+        """
+        CRF 层前向计算, 求得分
+        P(y|x)=\frac{exp \sum_k w_k f_k(y_{i-1}, y_{i}, x, i)}
+                    {\sum_y exp \sum_k w_k f_k(y_{i-1}, y_{i}, x, i)}
+        log P(y|x) = \sum_k w_k f_k(y_{i-1}, y_i, x, i) -
+                log({\sum_y exp \sum_k w_k f_k(y_{i-1}, y_{i}, x, i)})
+        求出来的是极大似然分数, 优化需要-1*log likelihood
+        """
         if reduction not in ["none", "sum", "mean", "token_mean"]:
             raise ValueError(
                 'reduction expected  "none", "sum", "mean", "token_mean",' +
@@ -107,7 +115,35 @@ class CRF(nn.Module):
     def _compute_score(self, emissions: torch.Tensor,
                        tags: torch.LongTensor,
                        mask: torch.ByteTensor) -> torch.Tensor:
-        pass
+        """ 计算batch sentences 在当前路径(tags)下的得分
+
+        Args:
+            emissions (torch.Tensor): (seq_length, batch_size, num_tags) 发射分数
+            tags (torch.LongTensor): (seq_length, batch_size) 转移分数
+            mask (torch.ByteTensor): (seq_length, batch_size) mask 矩阵
+
+        Returns:
+            torch.Tensor: (batch_size,)
+        """
+        seq_length, batch_size = tags.shape
+        mask = mask.float()
+
+        # shape: (batch_size,)
+        score = self.start_transitions[tags[0]]  # 从 start 转移到 tags[0]的分数
+        # 加上从 tags[0]发射到第一个词的分数
+        score = score + emissions[0, torch.arange(batch_size), tags[0]]
+
+        for i in range(1, seq_length):
+            # 从 tags[i-1]转移到 tags[i]的分数
+            score += self.transitions[tags[i-1], tags[i]] * mask[i]
+            # 从 tags[i]发射到第 i 个单词的分数
+            score += emissions[i, torch.arange(batch_size), tags[i]] * mask[i]
+
+        # 得出最后一个 tag
+        seq_ends = mask.long().sum(dim=0) - 1
+        last_tags = tags[seq_ends, torch.arange(batch_size)]
+        score += self.end_transitions[last_tags]
+        return score
 
     def _compute_normalizer(emissions: torch.Tensor,
                             mask: torch.ByteTensor) -> torch.Tensor:
