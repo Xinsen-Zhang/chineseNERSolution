@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Optional
+from typing import Optional, List
 
 
 class CRF(nn.Module):
@@ -173,3 +173,8 @@ class CRF(nn.Module):
         score += self.end_transitions
         score = torch.logsumexp(score)
         return score
+
+    def decode(self, emissions: torch.Tensor,
+               mask: Optional[torch.ByteTensor] = None,
+               pad_tag: Optional[int] = None) -> List[List[List[int]]]:
+        pass
