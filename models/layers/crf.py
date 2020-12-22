@@ -53,7 +53,7 @@ class CRF(nn.Module):
             mask = torch.ones_like(tags, dtype=torch.uint8, device=tags.device)
         if mask.dtype != torch.uint8:
             mask = mask.byte()
-        self._validation(emissions, tags, mask)
+        self._validation(emissions, tags=tags, mask=mask)
 
         if self.batch_first:
             emissions = emissions.transpose(0, 1)
@@ -74,9 +74,35 @@ class CRF(nn.Module):
         return llh.sum()/mask.float().sum()  # token level mean
 
     def _validation(self, emissions: torch.Tensor,
-                    tags: torch.LongTensor,
+                    tags: Optional[torch.LongTensor] = None,
                     mask: Optional[torch.ByteTensor] = None) -> None:
-        pass
+        if emissions.dim() != 3:
+            raise ValueError('emissions must have dimension of 3, ' +
+                             f'got {emissions.dim()}')
+        if emissions.size(2) != self.num_tags:
+            raise ValueError(
+                f'expected last dimension of emissions is {self.num_tags}, '
+                f'got {emissions.size(2)}')
+
+        if tags is not None:
+            if emissions.shape[:2] != tags.shape:
+                raise ValueError(
+                    'the first two dimensions of emissions and' +
+                    ' tags must match, ' +
+                    f'got {tuple(emissions.shape[:2])}' +
+                    f' and {tuple(tags.shape)}')
+
+        if mask is not None:
+            if emissions.shape[:2] != mask.shape:
+                raise ValueError(
+                    'the first two dimensions of emissions and' +
+                    ' mask must match, ' +
+                    f'got {tuple(emissions.shape[:2])}' +
+                    f' and {tuple(mask.shape)}')
+            no_empty_seq = not self.batch_first and mask[0].all()
+            no_empty_seq_bf = self.batch_first and mask[:, 0].all()
+            if not no_empty_seq and not no_empty_seq_bf:
+                raise ValueError('mask of the first timestep must all be on')
 
     def _compute_score(self, emissions: torch.Tensor,
                        tags: torch.LongTensor,
