@@ -177,4 +177,20 @@ class CRF(nn.Module):
     def decode(self, emissions: torch.Tensor,
                mask: Optional[torch.ByteTensor] = None,
                pad_tag: Optional[int] = None) -> List[List[List[int]]]:
+        if mask is None:
+            mask = torch.ones(emissions.shape[:2], device=emissions.device,
+                              detype=torch.uint8)
+        if mask.dtype != torch.uint8:
+            mask = mask.byte()
+        self._validation(emissions, mask=mask)
+
+        if self.batch_first:
+            emissions = emissions.transpose(0, 1)
+            mask = mask.transpose(0, 1)
+        return self._viterbi_decode(emissions, mask, pad_tag).unsqueeze(0)
+
+    def _viterbi_decode(self, emissions: torch.FloatTensor,
+                        mask: torch.ByteTensor,
+                        pad_tag: Optional[int] = None) \
+            -> List[List[List[int]]]:
         pass
