@@ -137,3 +137,8 @@ default.profraw
 .vscode/**
 **/.vscode
 **/.vscode/**
+
+.DS_Store
+**/.DS_Store
+**/.DS_Store/**
+.DS_Store/**
