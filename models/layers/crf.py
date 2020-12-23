@@ -177,6 +177,17 @@ class CRF(nn.Module):
     def decode(self, emissions: torch.Tensor,
                mask: Optional[torch.ByteTensor] = None,
                pad_tag: Optional[int] = None) -> List[List[List[int]]]:
+        """[summary]
+
+        Args:
+            emissions (torch.Tensor): [description]
+            mask (Optional[torch.ByteTensor], optional): [description]. Defaults to None.
+            pad_tag (Optional[int], optional): [description]. Defaults to None.
+
+        Returns:
+            List[List[List[int]]]: [description]
+        """
+        # TODO 检查返回的最优路径的shape
         if mask is None:
             mask = torch.ones(emissions.shape[:2], device=emissions.device,
                               detype=torch.uint8)
@@ -193,4 +204,16 @@ class CRF(nn.Module):
                         mask: torch.ByteTensor,
                         pad_tag: Optional[int] = None) \
             -> List[List[List[int]]]:
+        """使用viterbi算法解码出最优路径
+            动态规划的思想
+
+        Args:
+            emissions (torch.FloatTensor): (seq_length, batch_size, num_tags)
+                                            发射分数
+            mask (torch.ByteTensor): (seq_length, batch_size) 
+                                            mask 矩阵
+
+        Returns:
+            List[List[List[int]]]: (batch_size, seq_length)
+        """
         pass
