@@ -160,18 +160,27 @@ class CRF(nn.Module):
         # batch_size = emissions.size()[1]
         # shape: (batch_size, num_tags)
         score = self.start_transitions + emissions[0]
+        # print("DEBUG")
+        # print(score.shape)
+        # print(self.start_transitions.shape)
+        # print(emissions[0].shape)
         # TODO 此处是否需要 logsumexp?
         for i in range(1, seq_length):
+            # print("DEBUG")
             # shape: (batch_size, num_tags, 1)
             broadcast_score = score.unsqueeze(2)
             # shape: (batch_size, 1, num_tags)
             broadcast_emissions = emissions[i].unsqueeze(1)
+            # print(f"broadcast_score shape:{broadcast_score.shape}")
+            # print(f"broadcast_emissions shape:{broadcast_emissions.shape}")
+            # print(f"transition shape: {self.transitions.shape}")
+            # print(broadcast_score+broadcast_emissions)
             next_score = self.transitions + broadcast_score
             next_score = next_score + broadcast_emissions
             next_score = torch.logsumexp(next_score, dim=1)
             score = torch.where(mask[i].unsqueeze(1), next_score, score)
         score += self.end_transitions
-        score = torch.logsumexp(score)
+        score = torch.logsumexp(score, dim=1)
         return score
 
     def decode(self, emissions: torch.Tensor,
@@ -181,7 +190,7 @@ class CRF(nn.Module):
 
         Args:
             emissions (torch.Tensor): [description]
-            mask (Optional[torch.ByteTensor], optional): [description]. Defaults to None.
+            mask (Optional[torch.ByteTensor], optional): Defaults to None.
             pad_tag (Optional[int], optional): [description]. Defaults to None.
 
         Returns:
@@ -203,7 +212,7 @@ class CRF(nn.Module):
     def _viterbi_decode(self, emissions: torch.FloatTensor,
                         mask: torch.ByteTensor,
                         pad_tag: Optional[int] = None) \
-            -> List[List[List[int]]]:
+            -> List[List[int]]:
         """使用viterbi算法解码出最优路径
             动态规划的思想
 
@@ -214,6 +223,26 @@ class CRF(nn.Module):
                                             mask 矩阵
 
         Returns:
-            List[List[List[int]]]: (batch_size, seq_length)
+            List[List[int]]: (batch_size, seq_length)
         """
         pass
+
+
+if __name__ == "__main__":
+    batch_size = 128
+    seq_length = 64
+    num_tags = 7
+    crf = CRF(num_tags, batch_first=False)
+    tags = torch.randint(0, 6, size=(seq_length, batch_size))
+    mask = torch.ones_like(tags, dtype=torch.uint8, device=tags.device)
+    emissions = torch.randn(seq_length, batch_size, num_tags)
+    print(crf)
+    score = crf._compute_score(emissions, tags, mask)
+    # print(score)
+    # print(score.shape)
+    normalizer = crf._compute_normalizer(emissions, mask)
+    # print(normalizer)
+    # print(normalizer.shape)
+    llh  =crf(emissions, tags)
+    print(llh)
+    print(llh.shape)
