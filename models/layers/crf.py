@@ -193,4 +193,24 @@ class CRF(nn.Module):
                         mask: torch.ByteTensor,
                         pad_tag: Optional[int] = None) \
             -> List[List[List[int]]]:
-        pass
+        if pad_tag is None:
+            pad_tag = 0
+        device = emissions.device
+        seq_length, batch_size = mask.shape
+
+        # shape: (batch_size, num_tags)
+        score = self.start_transitions + emissions[0]
+        history_idx = torch.zeros((seq_length, batch_size, self.num_tags),
+                                  dtype=torch.long, device=device)
+        oor_idx = torch.zeros((batch_size, self.num_tags),
+                              dtype=torch.long, device=device)
+
+        for i in range(1, seq_length):
+            broadcast_score = score.unsqueeze(2)
+            broadcast_emissions = emissions[i].unsqueeze(1)
+            next_score = broadcast_score + self.transitions
+            next_score = next_score + broadcast_emissions
+            next_score, indices = next_score.max(dim=1)
+            score = torch.where(mask[i].unsqueeze(-1), next_score, score)
+            indices = torch.where(mask[i].unsqueeze(-1), indices, oor_idx)
+            history_idx[i-1] = indices
