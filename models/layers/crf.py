@@ -243,6 +243,6 @@ if __name__ == "__main__":
     normalizer = crf._compute_normalizer(emissions, mask)
     # print(normalizer)
     # print(normalizer.shape)
-    llh  =crf(emissions, tags)
+    llh = crf(emissions, tags)
     print(llh)
     print(llh.shape)
