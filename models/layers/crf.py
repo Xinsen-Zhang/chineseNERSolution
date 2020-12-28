@@ -261,6 +261,7 @@ class CRF(nn.Module):
                                                                self.num_tags),
                              end_tag.view(-1, 1, 1).expand(-1, 1,
                                                            self.num_tags))
+        # 按照 seq_length, 将 history_idx 中mask 最后的位置对应过去取 end_tag
         history_idx = history_idx.transpose(0, 1).contiguous()
         # The most probable path for each sequence
         best_tags_arr = torch.zeros((seq_length, batch_size),
