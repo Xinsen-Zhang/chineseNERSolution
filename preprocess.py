@@ -58,7 +58,7 @@ if __name__ == "__main__":
                                           for item in train_collections])
     write_text(configs['pval_x_path'], [item[0] for item in val_collections])
     write_text(configs['pval_y_path'], [item[1] for item in val_collections])
-    logger.info(f"have a look at a sample train data")
+    logger.info("have a look at a sample train data")
     with codecs.open(configs['ptrain_x_path']) as f:
         x = f.readlines()
     with codecs.open(configs['ptrain_y_path']) as f:
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         for char, tag in zip(x_item, y_item):
             logger.info(f"char: {char}, tag: {tag}")
         break
-    logger.info(f"have a look at a sample dev data")
+    logger.info("have a look at a sample dev data")
     with codecs.open(configs['pval_x_path']) as f:
         x = f.readlines()
     with codecs.open(configs['pval_y_path']) as f:

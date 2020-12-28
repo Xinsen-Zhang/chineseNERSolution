@@ -1,5 +1,6 @@
 # encoding:utf-8
 import os
+import torch
 
 BASE_DIR = "./data"
 labels = [
@@ -7,7 +8,7 @@ labels = [
     "book",
     "company",
     "game",
-    "goverment",
+    "government",
     "movie",
     "name",
     "organization",
@@ -56,5 +57,10 @@ configs = {
     # label config
     "labels": labels,
     "tag2id": tag2id,
-    'id2tag': id2tag
+    'id2tag': id2tag,
+
+    # pytorch config
+    "device": torch.device("gpu")
+    if torch.cuda.is_available()
+    else torch.device('cpu')
 }
