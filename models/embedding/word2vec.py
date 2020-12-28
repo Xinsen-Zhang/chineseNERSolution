@@ -2,6 +2,7 @@
 import os
 import multiprocessing
 from gensim.models import word2vec
+from utils import os_utils
 
 
 class Word2Vec():
@@ -13,7 +14,7 @@ class Word2Vec():
                  min_count=2,
                  sg=0,
                  hs=0,
-                 iter=10,
+                 iter=50,
                  tag='word',
                  seed=2021):
         '''
@@ -36,6 +37,10 @@ class Word2Vec():
         self.logger = logger
         self.seed = seed
         self.iter = iter
+        self._init()
+
+    def _init(self):
+        os_utils.make_dirs(self.save_dir)
 
     def train_w2v(self, data):
         """

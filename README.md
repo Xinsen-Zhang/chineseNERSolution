@@ -9,3 +9,8 @@
 
 ## run docker with pytorch
 sudo docker run -p 23:22 --name="torch-remote" -v /workspace/remote_work --restart=always -itd --shm-size 42g --gpu all nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+
+## 训练 word2vec
+python train_word2vec.py --tag=char --size=300
+python train_word2vec.py --tag=char --size=250
+python train_word2vec.py --tag=char --size=200

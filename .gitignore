@@ -144,3 +144,6 @@ default.profraw
 .DS_Store/**
 
 data/**
+
+logs/**
+embeddings/**
