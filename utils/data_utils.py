@@ -2,9 +2,11 @@
 
 import codecs
 import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 from .os_utils import make_dirs
 import numpy as np
+from torch.utils.data import RandomSampler, Dataset, DataLoader
+import torch
 
 
 def get_data(data_filepath: str) -> List[Dict]:
@@ -50,6 +52,34 @@ def save_data(data_filepath: str, train_filepath: str, test_filepath: str,
     with codecs.open(data_filepath, encoding='utf8', mode='w') as f:
         for line in all_data:
             f.write(f"{line}\n")
+
+
+def write_text(filename: str, content: List[str], is_append:
+               Optional[bool] = False) -> None:
+    if is_append:
+        with codecs.open(filename, mode='a', encoding='utf8') as f:
+            for line in content:
+                if type(line) == str:
+                    f.write("{}\n".format(" ".join([char for char in line])))
+                elif type(line) == list:
+                    f.write("{}\n".format(" ".join(line)))
+    else:
+        with codecs.open(filename, mode='w', encoding='utf8') as f:
+            for line in content:
+                if type(line) == str:
+                    f.write("{}\n".format(" ".join([char for char in line])))
+                elif type(line) == list:
+                    f.write("{}\n".format(" ".join(line)))
+
+
+def json2text(datapath: str, dest_filepath: str, is_append:
+              Optional[bool] = False, key: Optional[str] = None) -> None:
+    data = get_data(datapath)
+    if key is not None:
+        content = [item[key] for item in data]
+    else:
+        content = [json.dumps[item] for item in data]
+    write_text(dest_filepath, content, is_append)
 
 
 class DataTransformer(object):
@@ -147,6 +177,32 @@ class DataTransformer(object):
                 embedding_matrix[id] = embedding_vector
 
         return embedding_matrix
+
+
+class NERDataSet(Dataset):
+    def __init__(self, x: torch.LongTensor, y: torch.LongTensor,
+                 device: torch.device, max_length: int = 128):
+        self.device = device
+        self.x = x
+        self.y = y
+        self.max_length = max_length
+
+    def __getitem__(self, index):
+        sentence_tensor = self.x[index]
+        tag_tensor = self.y[index]
+        mask = torch.ones((1, self.max_length))
+        length = sentence_tensor.size()[0]
+        if length >= self.max_length:
+            start_index = np.random.randint(0, length-self.max_length)
+            return sentence_tensor[start_index:
+                                   start_index +
+                                   self.max_length].to(self.deivce),
+            tag_tensor[start_index:start_index +
+                       self.max_length].to(self.device),
+            mask.to(self.device)
+
+    def __len__(self):
+        return len(self.x)
 
 
 if __name__ == "__main__":
