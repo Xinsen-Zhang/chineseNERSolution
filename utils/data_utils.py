@@ -250,12 +250,12 @@ class DataTransformer(object):
 
 class NERDataSet(Dataset):
     def __init__(self, x: List[List[str]], y: List[List[str]],
-                 device: torch.device,
+                 #  device: torch.device,
                  transformer: DataTransformer,
                  max_length: int = 128,
                  return_mask: Optional[bool] = False,
                  is_training: Optional[bool] = False):
-        self.device = device
+        self.device = torch.device("cpu")
         self.x = x
         self.y = y
         self.max_length = max_length
@@ -346,7 +346,7 @@ class NERDataLoader(object):
                 x_data.append(x_item)
                 y_data.append(y_item)
             t.close()
-            dataset = NERDataSet(x_data, y_data, self.device,
+            dataset = NERDataSet(x_data, y_data,
                                  self.transformer, self.max_length,
                                  return_mask, True)
         else:
@@ -355,7 +355,7 @@ class NERDataLoader(object):
                 x_item = x_item.rstrip().split(" ")
                 x_data.append(x_item)
             t.close()
-            dataset = NERDataSet(x_data, None, self.device,
+            dataset = NERDataSet(x_data, None,
                                  self.transformer, self.max_length,
                                  return_mask, False)
         if tag_path is not None:
