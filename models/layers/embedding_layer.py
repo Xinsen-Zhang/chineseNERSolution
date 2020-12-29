@@ -1,4 +1,4 @@
-# encoding=utf-8
+# encoding:utf-8
 import torch
 from torch import nn
 from .spatial_dropout import SpatialDropout
