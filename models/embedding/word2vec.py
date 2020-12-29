@@ -31,7 +31,7 @@ class Word2Vec():
         self.min_count = min_count
         self.sg = sg
         self.hs = hs
-        self.workers = multiprocessing.cpu_count()
+        self.workers = 2 * multiprocessing.cpu_count()
         self.save_dir = save_dir
         self.tag = tag
         self.logger = logger
