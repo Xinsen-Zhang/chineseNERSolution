@@ -60,7 +60,7 @@ configs = {
     'id2tag': id2tag,
 
     # pytorch config
-    "device": torch.device("gpu")
+    "device": torch.device("cuda")
     if torch.cuda.is_available()
     else torch.device('cpu')
 }
