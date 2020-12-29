@@ -116,26 +116,9 @@ class DataTransformer(object):
         self.is_train_mode = is_train_mode
         self.tag2id = tag2id
 
-        # self.build_vocabs(self.all_data_path)
         self.build_from_word2vec(self.vocab_path)
 
     def build_from_word2vec(self, text_path):
-        #  = self.all_data_path
-        # all_words = []
-        # word2count = {}
-        # with codecs.open(text_path) as f:
-        #     for line in f:
-        #         line = line.strip().split(" ")
-        #         for word in line:
-        #             c = word2count.get(word, 0)
-        #             c += 1
-        #             word2count[word] = c
-        # word2count = sorted(word2count.items(),
-        #                     key=lambda x: x[1], reverse=True)
-        # all_words = [_[0] for _ in word2count]
-        # all_words = ['<pad>', '<unk>'] + all_words
-        # self.id2word = dict(enumerate(all_words))
-        # self.word2id = {v: k for k, v in enumerate(self.id2word)}
         self.word2id, self.embedding_matrix = \
             self.build_embedding_matrix(self.vocab_path)
         self.id2word = {v: k for k, v in self.word2id.items()}
@@ -182,6 +165,10 @@ class DataTransformer(object):
             all_words.append(word)
         id2word = dict(enumerate(all_words))
         word2id = {v: k for k, v in id2word.items()}
+        if id2word[0] != '<unk>':
+            raise ValueError("<unk> must map from index 0")
+        if id2word[1] != '<pad>':
+            raise ValueError("<pad> must map from index 1")
         embedding_matrix = np.random.normal(
             emb_mean, emb_std, (nb_words, embed_size))
         for word, embedding_vector in embeddings_index.items():

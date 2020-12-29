@@ -103,6 +103,6 @@ if __name__ == "__main__":
             for j in range(configs['max_length']):
                 logger.info(f'batch:{i+1}, ' +
                             f'char:{transformer.id2word[x_test[i,j]]},' +
-                            # f' tag:{configs["id2tag"][y_val[i,j]]}' +
-                            f' mask: {mask[i,j]}')
+                            f' mask: {mask[i,j]}, ' +
+                            f'char index: {x_test[i,j]}')
         break
