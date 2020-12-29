@@ -1,3 +1,4 @@
+# encoding:utf-8
 from utils.log_utils import init_logger
 from utils.data_utils import DataTransformer, NERDataLoader
 from config.basic_config import configs
