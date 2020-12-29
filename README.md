@@ -17,3 +17,4 @@ python train_word2vec.py --tag=char --size=200
 
 ## changelog
 20201229 学习 lstm 的压缩 + spatialDropout 两项技术
+"python.linting.flake8Args": ["--max-line-length=248"]
