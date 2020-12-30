@@ -33,14 +33,15 @@ def prepare_pack_paded_sequence(input_words: torch.Tensor,
 
 
 if __name__ == "__main__":
-    input_words = torch.randn([3, 2, 4])
-    length = torch.LongTensor([1, 3, 2]).view(3)
+    device = torch.device('cuda')
+    input_words = torch.randn([3, 2, 4]).to(device)
+    length = torch.LongTensor([1, 3, 2]).view(3).to(device)
     # print(length)
     sorted_input_words, sorted_seq_length, desorted_indices = \
         prepare_pack_paded_sequence(
             input_words, length, batch_first=True)
     print(f'input words: {input_words}')
-    # print(f'sequence length: {length}')
-    # print(f'sorted_input_words: {sorted_input_words}')
-    # print(f'desorted indices: {desorted_indices}')
+    print(f'sequence length: {length}')
+    print(f'sorted_input_words: {sorted_input_words}')
+    print(f'desorted indices: {desorted_indices}')
     print(f'restored words: {sorted_input_words[desorted_indices]}')

@@ -1,8 +1,8 @@
-from models.nn.bilstm import BiLSTMModel
+from models.nn.bilstm_crf import BiLSTMCRFModel
 from utils.log_utils import init_logger
 from utils.data_utils import DataTransformer, NERDataLoader
 from config.basic_config import configs
-from models.losses.cross_entropy import CrossEntropyLossWithMask
+# from models.losses.cross_entropy import CrossEntropyLossWithMask
 import os
 from torch import optim
 from utils.metric_utils import F1PrecisionRecall
@@ -35,12 +35,12 @@ if __name__ == "__main__":
     test_dataloader = ner_base_loader.load_data(
         configs['ptest_x_path'], None, True,
         configs['batch_size'], configs['num_workers'], shuffle=False)
-    model = BiLSTMModel(model_config=configs,
-                        embedding_dim=embedding_matrix.shape[1],
-                        num_classes=configs['num_classes'],
-                        vocab_size=embedding_matrix.shape[0],
-                        embedding_weight=embedding_matrix).to(configs['device'])
-    criterion = CrossEntropyLossWithMask().to(configs['device'])
+    model = BiLSTMCRFModel(model_config=configs,
+                           embedding_dim=embedding_matrix.shape[1],
+                           num_classes=configs['num_classes'],
+                           vocab_size=embedding_matrix.shape[0],
+                           embedding_weight=embedding_matrix).to(configs['device'])
+    # criterion = CrossEntropyLossWithMask().to(configs['device'])
     optimizer = optim.Adam(params=model.parameters(), lr=configs['learning_rate'],
                            weight_decay=configs['weight_decay'])
     metric = F1PrecisionRecall(configs['num_classes'])
@@ -52,8 +52,8 @@ if __name__ == "__main__":
             input_words = input_words.to(configs['device'])
             tags = tags.to(configs['device'])
             mask = mask.to(configs['device'])
-            output_logits = model(input_words, mask)
-            loss = criterion(output_logits, tags, mask)
+            loss = model(input_words, mask, tags)
+            # loss = criterion(output_logits, tags, mask)
             loss.backward()
             optimizer.step()
             total_losses += loss.detach().cpu().item()
@@ -68,4 +68,5 @@ if __name__ == "__main__":
                                    acc*100, f1,
                                    precision,
                                    recall))
+            # break
         # break

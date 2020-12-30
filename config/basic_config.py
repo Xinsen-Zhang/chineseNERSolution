@@ -2,7 +2,7 @@
 import os
 import torch
 
-BASE_DIR = "./data"
+BASE_DIR = os.path.join("/".join(os.path.abspath(__file__).split("/")[:-1]), "../data")
 labels = [
     "address",
     "book",
@@ -62,5 +62,27 @@ configs = {
     # pytorch config
     "device": torch.device("cuda")
     if torch.cuda.is_available()
-    else torch.device('cpu')
+    else torch.device('cpu'),
+
+    # model config
+    "batch_first": True,
+    # embedding config
+    "dropout_emb": 0.1,
+    "is_frozen": True,
+    # lstm config
+    "hidden_size": 512,
+    "num_layers": 2,
+    "dropout_lstm": 0.1,
+    "is_bidirectional": True,
+
+    # optimizer config
+    "learning_rate": 0.01,
+    "weight_decay": 5e-4,
+
+    # task config
+    "num_classes": 21,
+    "crf_num_classes": 23
 }
+
+print(__file__)
+print(BASE_DIR)

@@ -3,9 +3,9 @@ import torch
 from torch import nn
 from typing import Optional
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from layer_utils import prepare_pack_paded_sequence
+from .layer_utils import prepare_pack_paded_sequence
 # from torch.nn import functional as F
-from spatial_dropout import SpatialDropout
+from .spatial_dropout import SpatialDropout
 
 
 class BiLSTM(nn.Module):
@@ -27,7 +27,7 @@ class BiLSTM(nn.Module):
             input_size (Optional[int], optional): 输入给 lstm 的 feature size. Defaults to 128.
             is_bidirectional (Optional[bool], optional): 是否使用双向 LSTM. Defaults to True.
             num_classes (Optional[int], optional): 全连接层的logits 数量. Defaults to 9.
-            batch_first (Optional[bool], optional): [description]. Defaults to True.
+            batch_first (Optional[bool], optional): Defaults to True.
         """
         super(BiLSTM, self).__init__()
         self.input_size = input_size
@@ -53,7 +53,7 @@ class BiLSTM(nn.Module):
             prepare_pack_paded_sequence(
                 inputs, length, batch_first=self.batch_first)
         embedding_packed = pack_padded_sequence(
-            sorted_inputs, sorted_seq_length, batch_first=self.batch_first)
+            sorted_inputs, sorted_seq_length.cpu(), batch_first=self.batch_first)
         output, _ = self.lstm(embedding_packed)
         output, _ = pad_packed_sequence(output, batch_first=self.batch_first)
         output = output[desorted_indices] if self.batch_first \
