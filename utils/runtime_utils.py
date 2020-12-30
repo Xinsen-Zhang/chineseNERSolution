@@ -11,6 +11,16 @@ from pathlib import Path
 from torch import nn
 
 
+def print_config(config, logger: Optional[Logger] = None):
+    if logger is None:
+        logger = init_logger("runtime_utils", "./")
+    info = "Running with the following configs:\n"
+    for k, v in config.items():
+        info += f"\t{k} : {str(v)}\n"
+    print("\n" + info + "\n")
+    return
+
+
 def seed_everything(seed: Optional[int] = 1029) -> None:
     """设置整个开发环境的seed
 
