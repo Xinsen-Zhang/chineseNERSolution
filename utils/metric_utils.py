@@ -4,6 +4,9 @@ import torch
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from typing import Optional
 
+from collections import Counter
+from .ner_utils import get_entities
+
 
 class Accuracy(object):
     def __init__(self):
@@ -63,3 +66,51 @@ class F1PrecisionRecall(object):
             r = recall_score(y_pred=predict_sequence, y_true=actual_sequence)
         acc = accuracy_score(y_pred=predict_sequence, y_true=actual_sequence)
         return acc, f1, p, r
+
+
+class SeqEntityScore(object):
+    def __init__(self, id2label, markup='bios'):
+        self.id2label = id2label
+        self.markup = markup
+        self.reset()
+
+    def reset(self):
+        self.origins = []
+        self.founds = []
+        self.rights = []
+
+    def compute(self, origin, found, right):
+        recall = 0 if origin == 0 else right / origin
+        precision = 0 if found == 0 else right / found
+        f1 = 0.0 if recall + \
+            precision == 0 else (2*recall*precision)/(precision+recall)
+        return recall, precision, f1
+
+    def result(self):
+        class_info = {}
+        origin_counter = Counter([x[0] for x in self.origins])
+        found_counter = Counter(x[0] for x in self.founds)
+        right_counter = Counter(x[0] for x in self.rights)
+        for category, count in origin_counter.items():
+            origin = count
+            found = found_counter.get(category, 0)
+            right = right_counter.get(category, 0)
+            recall, precision, f1 = self.compute(origin, found, right)
+            class_info[category] = {
+
+            }
+
+    def update(self, label_paths, pred_paths):
+        """
+        labels_paths = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        pred_paths = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        """
+        for label_path, pred_path in zip(label_paths, pred_paths):
+            label_entities = get_entities(
+                label_path, self.id2label, self.markup)
+            pred_entities = get_entities(pred_path, self.id2label, self.markup)
+            self.origins.extend(label_entities)
+            self.founds.extend(pred_entities)
+            self.rights.extend([
+                pred_entity for pred_entity in pred_entities if pred_entity in label_entities
+            ])

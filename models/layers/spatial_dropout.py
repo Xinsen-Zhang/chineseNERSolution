@@ -35,8 +35,23 @@ class SpatialDropout(nn.Module):
         return noise.expand_as(inputs)
 
 
+class HighEfficiencySpatialDropout(nn.Dropout2d):
+    def __init__(self, p_dropout):
+        super(HighEfficiencySpatialDropout, self).__init__(p_dropout)
+        self.p_dropout = p_dropout
+
+    def forward(self, x: torch.Tensor):
+        # x, (batch_size, seq_length, embedding_dims)
+        x = x.unsqueeze(2)  # (batch_size, seq_length, 1, embedding_dims)
+        x = x.permute(0, 3, 2, 1)
+        x = super(HighEfficiencySpatialDropout, self).forward(x)
+        x = x.permute(0, 3, 2, 1)
+        x = x.squeeze(2)
+        return x
+
+
 if __name__ == "__main__":
-    spatial_dropout = SpatialDropout(0.2)
+    spatial_dropout = HighEfficiencySpatialDropout(0.2)
     batch_tensor = torch.randn(size=(3, 4, 5))
     out_tensor = spatial_dropout(batch_tensor)
     print(out_tensor)
