@@ -10,13 +10,12 @@ def make_dirs(path: str) -> None:
 
 
 def save_pickle(data, file_path):
-    '''
-    保存成pickle文件
-    :param data:
-    :param file_name:
-    :param pickle_path:
-    :return:
-    '''
+    """保存成pickle文件
+
+    Args:
+        data ([obejct]): 待保存的内容
+        file_path ([str]): 序列化保存至文件的文件名
+    """
     if isinstance(file_path, Path):
         file_path = str(file_path)
     with open(file_path, 'wb') as f:
