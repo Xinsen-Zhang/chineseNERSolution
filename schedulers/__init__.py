@@ -220,7 +220,7 @@ class ReduceLROnPlateau(object):
         return self.cooldown_counter > 0
 
     def is_better(self, a, best):
-        if self.mode = 'min' and self.threshold_mode == 'rel':
+        if self.mode == 'min' and self.threshold_mode == 'rel':
             rel_epsilon = 1 - self.threshold
             return a < best * rel_epsilon
         elif self.mode = 'min' and self.threshold_mode == 'abs':

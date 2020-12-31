@@ -97,8 +97,19 @@ class SeqEntityScore(object):
             right = right_counter.get(category, 0)
             recall, precision, f1 = self.compute(origin, found, right)
             class_info[category] = {
-
+                "recall": recall,
+                "precision": precision,
+                "f1": f1
             }
+        origin = len(self.origins)
+        found = len(self.founds)
+        right = len(self.rights)
+        recall, precision, f1 = self.compute(origin, found, right)
+        return {
+            'recall': recall,
+            'precision': precision,
+            'f1': f1
+        }, class_info
 
     def update(self, label_paths, pred_paths):
         """
