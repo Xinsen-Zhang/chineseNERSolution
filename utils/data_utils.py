@@ -1,15 +1,17 @@
 # encoding:utf-8
 
+import os
 import codecs
 import json
 from typing import List, Dict, Optional
-from .os_utils import make_dirs
 import numpy as np
 from torch.utils.data import RandomSampler, Dataset, DataLoader
 import torch
 from tqdm import tqdm
 from logging import Logger
+from .os_utils import make_dirs
 from .log_utils import init_logger
+from .vocabulary_utils import Vocabulary
 
 
 def get_data(data_filepath: str) -> List[Dict]:
@@ -352,6 +354,77 @@ class NERDataLoader(object):
         else:
             return DataLoader(dataset, batch_size=batch_size,
                               num_workers=num_workers, shuffle=False)
+
+
+class ClunerProcessor(object):
+    """
+    Processor for the chinese ner data set
+    """
+
+    def __init__(self, data_dir):
+        self.vocab = Vocabulary()
+        self.data_dir = data_dir
+
+    def _create_examples(self, input_path, mode):
+        examples = []
+        with codecs.open(input_path, 'r') as f:
+            idx = 0
+            for line in f:
+                json_data = {}
+                line = json.loads(line.strip())
+                text = line['text']
+                label_entities = line.get("label", None)
+                words = list(text)
+                labels = ['O']*len(words)
+                # {"organization": {"曼联": [[23, 24]]}, "name": {"温格": [[0, 1]]}}
+                if label_entities is not None:
+                    for key, value in label_entities.items():
+                        # {"曼联": [[23, 24]]}
+                        for sub_name, sub_index in value.items():
+                            # [[23, 24]]
+                            for start_index, end_index in sub_index:
+                                assert ''.join(
+                                    words[start_index:end_index+1]) == sub_name
+                                if start_index == end_index:
+                                    label_entities[start_index] = 'S-{}'.format(
+                                        key)
+                                else:
+                                    label_entities[start_index] = 'B-{}'.format(
+                                        key)
+                                    label_entities[start_index+1:end_index +
+                                                   1] = ['I-{}'.format(key)] * (len(sub_name)-1)
+                json_data['id'] = f"{mode}-{idx}"
+                json_data['context'] = " ".join(words)
+                json_data['tags'] = " ".join(labels)
+                json_data['raw_text'] = "".join(words)
+                idx += 1
+                examples.append(json_data)
+        return examples
+
+    def get_train_examples(self):
+        return self._create_examples(os.path.join(self.data_dir, "train.json"), "train")
+
+    def get_dev_examples(self):
+        return self._create_examples(os.path.join(self.data_dir, "dev.json"), "dev")
+
+    def get_test_examples(self):
+        return self._create_examples(os.path.join(self.data_dir, "test.json"), "test")
+
+    def get_vocab(self):
+        vocab_path = os.path.join(self.data_dir, "vocab.pkl")
+        if os.path.exists(vocab_path):
+            self.vocab.load_from_file(vocab_path)
+        else:
+            files = ["train.json", "dev.json", "test.json"]
+            for file in files:
+                filename = os.path.join(self.data_dir, file)
+                with codecs.open(filename, 'r', encoding='utf8') as f:
+                    for line in f:
+                        line = json.loads(line.strip())
+                        text = line['text']
+                        self.vocab.update(list(text))
+            self.vocab.build_vocab()
+            self.vocab.save(vocab_path)
 
 
 if __name__ == "__main__":
