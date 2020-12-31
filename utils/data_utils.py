@@ -9,6 +9,7 @@ from torch.utils.data import RandomSampler, Dataset, DataLoader
 import torch
 from tqdm import tqdm
 from logging import Logger
+import random
 from .os_utils import make_dirs
 from .log_utils import init_logger
 from .vocabulary_utils import Vocabulary
@@ -425,6 +426,100 @@ class ClunerProcessor(object):
                         self.vocab.update(list(text))
             self.vocab.build_vocab()
             self.vocab.save(vocab_path)
+
+
+class ClunerDataLoader(object):
+    def __init__(self, data: List[Dict], batch_size: int, shuffle: bool,
+                 vocab: Vocabulary, label2id: dict, seed: int, sort=True):
+        self.data = data
+        self.shuffle = shuffle
+        self.batch_size = batch_size
+        self.seed = seed
+        self.sort = sort
+        self.vocab = vocab
+        self.lable2id = label2id
+        self._reset()
+
+    def _reset(self):
+        self.examples = self.preprocess(self.data)
+        if self.sort:
+            self.examples = sorted(
+                self.examples, key=lambda x: x[2], reverse=True)
+        if self.shuffle:
+            indices = [i for i in range(len(self.examples))]
+            random.shuffle(indices)
+            self.examples = [self.examples[i] for i in indices]
+        self.features = [self.examples[i:min(i+self.batch_size, len(self.examples))]
+                         for i in range(0, len(self.examples), self.batch_size)]
+        print(f"{len(self.features)} batches created")
+
+    def preprocess(self, data_list):
+        """
+        Preprocess the data and convert to ids.
+        """
+        processed = []
+        for data in data_list:  # data (dict), raw_text, context, tags, id
+            text = data['context']
+            tags = data['tags']
+            tokens = [self.vocab.to_index(word) for word in text.split(" ")]
+            x_len = len(tokens)
+            tag_ids = [self.lable2id[label] for label in tags.split(" ")]
+            processed.append((tokens, tag_ids, x_len, text, tags))
+        return processed
+
+    def get_long_tensor(self, token_list, batch_size, mask: Optional[bool] = True):
+        """
+        Convert list of list of tokens to a paded LongTensor.
+        """
+        token_len = max(len(x) for x in token_list)
+        tokens = torch.LongTensor(batch_size, token_len).fill_(0)
+        mask_ = torch.LongTensor(batch_size, token_len).fill_(0)
+        for i, s in enumerate(token_list):
+            tokens[i, :len(s)] = torch.LongTensor(s)
+            if mask:
+                mask_[i, len(s)] = torch.tensor([1]*len(s), dtype=torch.long)
+        if mask:
+            return tokens, mask_
+        return tokens
+
+    def sort_all(self, batch, lens):
+        """
+        Sort all fields by descending order of lens, and return the original indices.
+        奇淫巧技
+        """
+        unsorted_all = [lens] + [[i for i in range(len(lens))]] + [batch]
+        sorted_all = [list(t) for t in zip(
+            *sorted(zip(*unsorted_all), reverse=True))]
+        return sorted_all[2:], sorted_all[1]
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, index):
+        """
+        Get a batch with an index.
+        """
+        if not isinstance(index, int):
+            raise TypeError(
+                "expect type of index is int, but get {}".format(type(index).__name__))
+        if index < 0 or index >= len(self.features):
+            raise IndexError("index out of bounds")
+        batch = self.features[index]
+        batch_size = len(batch)
+        batch = list(zip(*batch))
+        # batch[0] is list of tokens
+        # batch[1] is list of tag_ids
+        # batch[2] is list of length of tokens
+        # batch[3] is list of string containing text
+        # batch[4] is list of string containing tags
+        lens = [len(x) for x in batch[0]]
+        batch, origin_index = self.sort_all(batch, lens)
+        token_list = batch[0]
+        input_ids, input_mask = self.get_long_tensor(
+            token_list, batch_size, mask=True)
+        label_ids = self.get_long_tensor(batch[1], batch_size)
+        input_lens = [len(x) for x in batch[0]]
+        return (input_ids, input_mask, label_ids, input_lens)
 
 
 if __name__ == "__main__":
