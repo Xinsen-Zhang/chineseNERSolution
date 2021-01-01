@@ -24,7 +24,7 @@ class BiLSTMCRFNERModel(nn.Module):
                               bidirectional=True)
         self.dropout = HighEfficiencySpatialDropout(self.p_dropout)
         self.layer_norm = nn.LayerNorm(self.hidden_size*2)
-        self.classification = nn.Linear(self.hidden_size, len(label2id))
+        self.classification = nn.Linear(self.hidden_size*2, len(label2id))
         self.crf = CRF(len(label2id), self.label2id, device=self.device)
 
     def forward(self, input_ids, input_mask):
@@ -41,6 +41,6 @@ class BiLSTMCRFNERModel(nn.Module):
         features = self.forward(input_ids, input_mask)
         if input_tags is not None:
             # TODO 此处存疑
-            return features, self.crf.calculate_loss(features, input_tags, input_mask)
+            return features, self.crf.calculate_loss(features, input_tags, input_lens)
         else:
             return features

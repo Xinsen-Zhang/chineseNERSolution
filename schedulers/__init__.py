@@ -2,9 +2,8 @@
 
 import math
 import numpy as np
-import torch
 from torch.optim import Optimizer
-from torch.optim.lr_scheduler import LambdaLRF
+# from torch.optim.lr_scheduler import LambdaLRF
 import warnings
 
 EPOCH_DEPRECATION_WARNING = (
@@ -152,7 +151,8 @@ class CyclicLR:
     def get_lr(self):
         step_size = float(self.step_size)
         cycle = np.floor(1+self.last_batch_iteration/(2*step_size))
-        x = np.abs(self.last_batch_iteration/step_size-2*cycle+1)
+        _ = np.abs(self.last_batch_iteration/step_size-2*cycle+1)
+        pass
 
     def batch_step(self, batch_iteration=None):
         pass
@@ -223,7 +223,7 @@ class ReduceLROnPlateau(object):
         if self.mode == 'min' and self.threshold_mode == 'rel':
             rel_epsilon = 1 - self.threshold
             return a < best * rel_epsilon
-        elif self.mode = 'min' and self.threshold_mode == 'abs':
+        elif self.mode == 'min' and self.threshold_mode == 'abs':
             return a < best - self.threshold
         elif self.mode == 'max' and self.threshold_mode == 'rel':
             rel_epsilon = 1+self.threshold
@@ -288,7 +288,7 @@ class ReduceLROnPlateau(object):
 
 class ReduceLRWDOnPlateau(ReduceLROnPlateau):
 
-    def step(self, metrics, epoch):
+    def step(self, metrics, epoch=None):
         current = float(metrics)
         if epoch is None:
             epoch = self.last_epoch+1

@@ -55,7 +55,7 @@ class ProgressBar(object):
         show_bar += time_info
         if len(info) != 0:
             show_info = f'{show_bar} ' + \
-                        "-".join([f' {key}: {value:.4f} ' for key,
+                        "-".join([' {}: {:.4f} '.format(key, value) for key,
                                   value in info.items()])
             print(show_info, end='')
         else:

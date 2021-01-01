@@ -125,3 +125,23 @@ class SeqEntityScore(object):
             self.rights.extend([
                 pred_entity for pred_entity in pred_entities if pred_entity in label_entities
             ])
+
+
+class AverageMeter(object):
+    def __init__(self):
+        self._reset()
+
+    def _reset(self):
+        self.val = 0
+        self.sum = 0
+        self.count = 0
+
+    @property
+    def avg(self):
+        return self.sum / self.count if self.count > 0 else 0.0
+
+    def update(self, val, n):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        # self.avg = self.sum /

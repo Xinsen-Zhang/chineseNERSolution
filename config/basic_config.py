@@ -20,16 +20,20 @@ labels = [
 def generate_tag2id(labels):
     result = {'O': 0}
     for index, label in enumerate(labels):
-        result[f"B_{label}"] = 2*index+1
-        result[f"I_{label}"] = 2*index+2
+        result[f"B-{label}"] = 3*index+1
+        result[f"I-{label}"] = 3*index+2
+        result[f"S-{label}"] = 3*index+3
     return result
 
 
 tag2id = generate_tag2id(labels)
+tag2id['<START>'] = len(tag2id)
+tag2id['<STOP>'] = len(tag2id)
 id2tag = {v: k for k, v in tag2id.items()}
 
 configs = {
     # data config
+    "base_dir": BASE_DIR,
     'train_data_path': os.path.join(BASE_DIR, 'train.json'),
     'val_data_path': os.path.join(BASE_DIR, 'dev.json'),
     'test_data_path': os.path.join(BASE_DIR, 'test.json'),
@@ -81,8 +85,11 @@ configs = {
 
     # task config
     "num_classes": 21,
-    "crf_num_classes": 23
+    "crf_num_classes": 23,
+
+    # output_dir
+    "output_dir": os.path.join(BASE_DIR, '../checkpoints/'),
 }
 
-print(__file__)
-print(BASE_DIR)
+# print(__file__)
+# print(BASE_DIR)

@@ -387,13 +387,16 @@ class ClunerProcessor(object):
                                 assert ''.join(
                                     words[start_index:end_index+1]) == sub_name
                                 if start_index == end_index:
-                                    label_entities[start_index] = 'S-{}'.format(
+                                    labels[start_index] = 'S-{}'.format(
                                         key)
                                 else:
-                                    label_entities[start_index] = 'B-{}'.format(
+                                    labels[start_index] = 'B-{}'.format(
                                         key)
-                                    label_entities[start_index+1:end_index +
-                                                   1] = ['I-{}'.format(key)] * (len(sub_name)-1)
+                                    # print(start_index, end_index, ['I-{}'.format(key)] * (len(sub_name)-1))
+                                    # print(label_entities)
+                                    # print(label_entities[start_index+1:end_index + 1])
+                                    labels[start_index+1:end_index +
+                                           1] = ['I-{}'.format(key)] * (len(sub_name)-1)
                 json_data['id'] = f"{mode}-{idx}"
                 json_data['context'] = " ".join(words)
                 json_data['tags'] = " ".join(labels)
@@ -477,7 +480,7 @@ class ClunerDataLoader(object):
         for i, s in enumerate(token_list):
             tokens[i, :len(s)] = torch.LongTensor(s)
             if mask:
-                mask_[i, len(s)] = torch.tensor([1]*len(s), dtype=torch.long)
+                mask_[i, :len(s)] = torch.tensor([1]*len(s), dtype=torch.long)
         if mask:
             return tokens, mask_
         return tokens
@@ -487,7 +490,7 @@ class ClunerDataLoader(object):
         Sort all fields by descending order of lens, and return the original indices.
         奇淫巧技
         """
-        unsorted_all = [lens] + [[i for i in range(len(lens))]] + [batch]
+        unsorted_all = [lens] + [[i for i in range(len(lens))]] + list(batch)
         sorted_all = [list(t) for t in zip(
             *sorted(zip(*unsorted_all), reverse=True))]
         return sorted_all[2:], sorted_all[1]
@@ -517,7 +520,7 @@ class ClunerDataLoader(object):
         token_list = batch[0]
         input_ids, input_mask = self.get_long_tensor(
             token_list, batch_size, mask=True)
-        label_ids = self.get_long_tensor(batch[1], batch_size)
+        label_ids = self.get_long_tensor(batch[1], batch_size, mask=False)
         input_lens = [len(x) for x in batch[0]]
         return (input_ids, input_mask, label_ids, input_lens)
 
