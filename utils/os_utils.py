@@ -3,6 +3,8 @@
 import os
 from pathlib import Path
 import pickle
+from torch import nn
+import torch
 
 
 def make_dirs(path: str) -> None:
@@ -34,3 +36,23 @@ def load_pickle(input_file) -> object:
     with open(str(input_file), 'rb') as f:
         data = pickle.load(f)
     return data
+
+
+def save_model(model: nn.Module, model_path):
+    if isinstance(model, nn.DataParallel):
+        model = model.modules
+    state_dict = model.state_dict()
+    for key, value in state_dict.items():
+        state_dict[key] = value.cpu()
+    torch.save(state_dict, model_path)
+
+
+def load_model(model: nn.Module, model_path):
+    state_dict = torch.load(model_path)
+    if 'state_dict' in state_dict:
+        state_dict = state_dict['state_dict']
+    if isinstance(model, nn.DataParallel):
+        model.modules.load_state_dict(state_dict)
+    else:
+        model.load_state_dict(state_dict)
+    return model

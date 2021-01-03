@@ -15,6 +15,9 @@ from utils.progress_utils import ProgressBar
 from utils.metric_utils import AverageMeter, SeqEntityScore
 from models.bilstm_crf import BiLSTMCRFNERModel
 from utils.runtime_utils import seed_everything
+import json
+from utils.os_utils import load_model
+from utils.ner_utils import get_entities
 
 
 def load_and_cache_data(args, processor: ClunerProcessor = None,
@@ -146,22 +149,80 @@ def train(args, model: nn.Module, processor: ClunerProcessor, logger: Logger = N
             logger.info(info)
 
 
-# TODO args 添加 data_dir
-# TODO args 添加 model_name
+def predict(args, model, processor):
+    model_path = os.path.join(args.output_model_path, "best_model.bin")
+    model = load_model(model, model_path)
+    model.to(args.device)
+    test_data = []
+    with open(os.path.join(args.data_dir, "test.json"), encoding='utf8', mode='r') as f:
+        idx = 0
+        for line in f:
+            json_data = {}
+            line = json.loads(line.strip())
+            text = line['text']
+            words = list(text)
+            labels = ['O'] * len(words)
+            json_data['id'] = idx
+            json_data['context'] = " ".join(words)
+            json_data['tag'] = " ".join(labels)
+            json_data['raw_text'] = "".join(words)
+            idx += 1
+            test_data.append(json_data)
+    pbar = ProgressBar(n_total=len(test_data))
+    result = []
+    for step, line in enumerate(test_data):
+        token_origin = line['context'].split(" ")
+        input_ids = [processor.vocab.to_index(w) for w in token_origin]
+        input_mask = [1] * len(token_origin)
+        input_lens = [len(token_origin)]
+        model.eval()
+        with torch.no_grad():
+            input_ids = torch.tensor(
+                [input_ids], dtype=torch.long).to(args.device)  # .contiguous().view(1, -1)
+            input_mask = torch.tensor(
+                [input_mask], dtype=torch.long).to(args.device)  # .contiguous().view(1, -1)
+            input_lens = torch.tensor(
+                [input_lens], dtype=torch.long).to(args.device)  # .contiguous().view(1, -1)
+            features = model.forward_loss(
+                input_ids, input_mask, input_lens, input_tags=None)
+            tags, _ = model.crf._obtain_labels(
+                features, args.id2label, input_lens)
+        label_entities = get_entities(tags[0], args.id2label)
+        json_data = {}
+        json_data['id'] = step
+        # json_data['tag_seq'] = " ".join(tags[0])
+        json_data['text'] = line['raw_text']
+        labels = label_entities
+        label2index = {}
+        for label, from_index, to_index in label_entities:
+            content = label2index.get(label, [])
+            content.append({json_data['text'][from_index:min(
+                to_index+1, len(json_data['text']))]: [[from_index, to_index]]})
+            label2index[label] = content
+        json_data['label'] = label2index
+        result.append(json_data)
+        pbar(step)
+    submission_filename = os.path.join(args.data_dir, "submission.json")
+    with open(submission_filename, "w", encoding='utf8') as f:
+        for item in result:
+            f.write(f'{json.dumps(item, ensure_ascii=False)}\n')
 
+
+# TODO 修改 dataloader
 
 def main():
     parse = argparse.ArgumentParser()
-    parse.add_argument("--do_train", default=True, action='store_true')
+    parse.add_argument("--do_train", default=False, action='store_true')
+    parse.add_argument("--do_predict", default=True, action='store_true')
     parse.add_argument('--model_name', default='bilstm_crf', type=str)
 
     parse.add_argument('--markup', default='bios', choices=['bio', 'bios'])
     parse.add_argument('--seed', default=2021, type=int)
-    parse.add_argument('--batch_size', default=128, type=int)
+    parse.add_argument('--batch_size', default=256, type=int)
     parse.add_argument('--sort', default=True, type=bool)
     parse.add_argument('--shuffle', default=True, type=bool)
     parse.add_argument('--learning_rate', default=0.001, type=float)
-    parse.add_argument('--epochs', default=30, type=int)
+    parse.add_argument('--epochs', default=64, type=int)
     parse.add_argument("--gpu", default='0', type=str)
     parse.add_argument('--embedding_size', default=128, type=int)
     parse.add_argument('--hidden_size', default=384, type=int)
@@ -169,7 +230,6 @@ def main():
     parse.add_argument('--p_dropout', default=0.5, type=float)
     parse.add_argument("--grad_norm", default=5.0,
                        type=float, help="Max gradient norm.")
-    parse.add_argument("--seed", default=2021, type=int)
 
     args = parse.parse_args()
     args.data_dir = configs['base_dir']
@@ -197,6 +257,9 @@ def main():
     model.to(args.device)
     if args.do_train:
         train(args, model, processor, logger)
+        pass
+    if args.do_predict:
+        predict(args, model, processor)
 
 
 if __name__ == "__main__":
