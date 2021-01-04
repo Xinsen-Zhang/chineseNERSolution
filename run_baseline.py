@@ -1,6 +1,6 @@
 # encoding:utf-8
 
-from utils.data_utils import ClunerProcessor, ClunerDataLoader
+from utils.data_utils import ClunerProcessor
 from utils.log_utils import init_logger
 from config.basic_config import configs
 import os
@@ -18,6 +18,7 @@ from utils.runtime_utils import seed_everything
 import json
 from utils.os_utils import load_model
 from utils.ner_utils import get_entities
+from utils.data_utils import NerDataLoader
 
 
 def load_and_cache_data(args, processor: ClunerProcessor = None,
@@ -44,21 +45,16 @@ def load_and_cache_data(args, processor: ClunerProcessor = None,
 
 
 def evaluate(args, model: nn.Module, processor: ClunerProcessor, logger: Logger):
-    eval_dataset = load_and_cache_data(args, processor, data_type='dev')
-    eval_dataloader = ClunerDataLoader(eval_dataset, batch_size=args.batch_size,
-                                       shuffle=False,
-                                       seed=args.seed,
-                                       sort=False,
-                                       vocab=processor.vocab,
-                                       label2id=args.label2id)
+    eval_dataloader = NerDataLoader(mode='evaluation', batch_size=args.batch_size,
+                                    drop_last=False, max_length=50, shuffle=False, logger=logger,
+                                    data_dir=args.data_dir, num_workers=args.num_workers, label2id=args.label2id).get_dataloader()
     pbar = ProgressBar(n_total=len(eval_dataloader), desc='Evaluation')
     metric = SeqEntityScore(args.id2label, markup=args.markup)
     eval_loss = AverageMeter()
     logger.info("start evaluate")
     model.eval()
     with torch.no_grad():
-        for step in range(len(eval_dataloader)):
-            batch = eval_dataloader[step]
+        for step, batch in enumerate(eval_dataloader):
             input_ids, input_mask, input_tags, input_lens = batch
             input_ids = input_ids.to(args.device)
             input_mask = input_mask.to(args.device)
@@ -85,13 +81,9 @@ def train(args, model: nn.Module, processor: ClunerProcessor, logger: Logger = N
     if logger is None:
         global configs
         logger = init_logger("train", configs['log_dir'])
-    train_dataset = load_and_cache_data(args, processor, logger=logger)
-    train_loader = ClunerDataLoader(train_dataset, batch_size=args.batch_size,
-                                    shuffle=args.shuffle,
-                                    seed=args.seed,
-                                    sort=args.sort,
-                                    vocab=processor.vocab,
-                                    label2id=args.label2id)
+    train_loader = NerDataLoader(mode='train', batch_size=args.batch_size,
+                                 drop_last=False, max_length=50, shuffle=False, logger=logger,
+                                 data_dir=args.data_dir, num_workers=args.num_workers, label2id=args.label2id).get_dataloader()
     parameters = [p for p in model.parameters() if p.requires_grad]
     optimizer = optim.Adam(parameters, lr=args.learning_rate)
     scheduler = ReduceLRWDOnPlateau(optimizer, mode='max', factor=0.6, patience=3,
@@ -104,9 +96,7 @@ def train(args, model: nn.Module, processor: ClunerProcessor, logger: Logger = N
         train_loss = AverageMeter()
         model.train()
         assert model.training
-        n_total = len(train_loader)
-        for step in range(n_total):
-            batch = train_loader[step]
+        for step, batch in enumerate(train_loader):
             input_ids, input_mask, input_tags, input_lens = batch
             input_ids = input_ids.to(args.device)
             input_mask = input_mask.to(args.device)
@@ -149,8 +139,10 @@ def train(args, model: nn.Module, processor: ClunerProcessor, logger: Logger = N
             logger.info(info)
 
 
-def predict(args, model, processor):
+def predict(args, model, processor, logger: Logger):
+
     model_path = os.path.join(args.output_model_path, "best_model.bin")
+    logger.info("loadding model from {}".format(model_path))
     model = load_model(model, model_path)
     model.to(args.device)
     test_data = []
@@ -208,19 +200,29 @@ def predict(args, model, processor):
             f.write(f'{json.dumps(item, ensure_ascii=False)}\n')
 
 
-# TODO 修改 dataloader
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
 
 def main():
     parse = argparse.ArgumentParser()
-    parse.add_argument("--do_train", default=False, action='store_true')
-    parse.add_argument("--do_predict", default=True, action='store_true')
+    parse.add_argument("--do_train", default=False, type=str2bool)
+    parse.add_argument("--do_evaluation", default=False, type=str2bool)
+    parse.add_argument("--do_predict", default=False, type=str2bool)
     parse.add_argument('--model_name', default='bilstm_crf', type=str)
-
+    parse.add_argument("--num_workers", default=8, type=int)
     parse.add_argument('--markup', default='bios', choices=['bio', 'bios'])
     parse.add_argument('--seed', default=2021, type=int)
     parse.add_argument('--batch_size', default=256, type=int)
-    parse.add_argument('--sort', default=True, type=bool)
-    parse.add_argument('--shuffle', default=True, type=bool)
+    parse.add_argument('--sort', default=True, type=str2bool)
+    parse.add_argument('--shuffle', default=True, type=str2bool)
     parse.add_argument('--learning_rate', default=0.001, type=float)
     parse.add_argument('--epochs', default=64, type=int)
     parse.add_argument("--gpu", default='0', type=str)
@@ -248,18 +250,25 @@ def main():
 
     processor = ClunerProcessor(configs['base_dir'])
     processor.get_vocab()
-    logger = init_logger("train", configs['log_dir'])
-    for label, idx in args.label2id.items():
-        logger.info(f"label: {label} - id: {idx}")
     model = BiLSTMCRFNERModel(vocab_size=len(processor.vocab), embedding_size=args.embedding_size,
                               hidden_size=args.hidden_size, label2id=args.label2id,
                               device=args.device, p_dropout=args.p_dropout, num_layers=args.num_layers)
     model.to(args.device)
     if args.do_train:
+        logger = init_logger("train", configs['log_dir'])
+        for label, idx in args.label2id.items():
+            logger.info(f"label: {label} - id: {idx}")
         train(args, model, processor, logger)
-        pass
+    elif args.do_evaluation:
+        logger = init_logger("evaluation", configs['log_dir'])
+        for label, idx in args.label2id.items():
+            logger.info(f"label: {label} - id: {idx}")
+        evaluate(args, model, processor, logger)
     if args.do_predict:
-        predict(args, model, processor)
+        logger = init_logger("predict", configs['log_dir'])
+        for label, idx in args.label2id.items():
+            logger.info(f"label: {label} - id: {idx}")
+        predict(args, model, processor, logger)
 
 
 if __name__ == "__main__":

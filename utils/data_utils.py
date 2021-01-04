@@ -13,6 +13,7 @@ import random
 from .os_utils import make_dirs
 from .log_utils import init_logger
 from .vocabulary_utils import Vocabulary
+from logging import getLogger
 
 
 def get_data(data_filepath: str) -> List[Dict]:
@@ -367,6 +368,9 @@ class ClunerProcessor(object):
         self.data_dir = data_dir
 
     def _create_examples(self, input_path, mode):
+        """
+        返回 list of dict, id, context, tags, row_tags
+        """
         examples = []
         with codecs.open(input_path, 'r') as f:
             idx = 0
@@ -523,6 +527,91 @@ class ClunerDataLoader(object):
         label_ids = self.get_long_tensor(batch[1], batch_size, mask=False)
         input_lens = [len(x) for x in batch[0]]
         return (input_ids, input_mask, label_ids, input_lens)
+
+
+class NerDataSet(Dataset):
+    def __init__(self, processor: ClunerProcessor, mode: str = 'train', max_length: int = 50,
+                 label2id: dict = None):
+        self.processor = processor
+        self.mode = mode
+        self.max_length = max_length
+        self.label2id = label2id
+        self.processor.get_vocab()
+        if self.mode == 'train':
+            self.examples = self.processor.get_train_examples()
+        elif self.mode == 'test':
+            self.examples = self.processor.get_test_examples()
+        else:
+            self.examples = self.processor.get_dev_examples()
+
+    def __len__(self):
+        return len(self.examples)
+
+    def __getitem__(self, index):
+        """
+
+        Args:
+            index ([int]): 数据的 index
+
+        Returns:
+            input_ids, input_mask, label_ids, input_lens
+        """
+        item = self.examples[index]
+        tokens = item['context']  # "今 天 天 气 真 好 啊"
+        tags = item['tags']  # "B-PER I-PER S-PER O O O"
+        tokens = tokens.split(" ")
+        tags = tags.split(" ")
+        token_ids = [self.processor.vocab.to_index(token) for token in tokens]
+        tag_ids = [self.label2id[tag] for tag in tags]
+        token_lens = len(token_ids)
+        mask = [1 for i in range(token_lens)]
+        if len(token_ids) < self.max_length:
+            for _ in range(self.max_length-len(token_ids)):
+                mask.append(0)
+                token_ids.append(self.processor.vocab.padding_idx())
+                tag_ids.append(self.label2id['O'])
+        return (torch.tensor(token_ids, dtype=torch.long),
+                torch.tensor(mask, dtype=torch.long),
+                torch.tensor(tag_ids, dtype=torch.long),
+                torch.tensor(token_lens, dtype=torch.long))
+                # token_lens)
+
+
+class NerDataLoader:
+    def __init__(self, mode: str = 'train', batch_size: int = 128, drop_last: bool = False, max_length: int = 50,
+                 shuffle: bool = False, logger: Logger = None, data_dir: str = None, num_workers: int = 8, label2id: dict = None):
+        if data_dir is None or len(data_dir) == 0:
+            raise ValueError(
+                "data dir expect of a valid string, but got None or empty string")
+        if logger is None:
+            self.logger = getLogger()
+        else:
+            self.logger = logger
+        self.processor = ClunerProcessor(data_dir)
+        self.mode = mode
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.shuffle = shuffle
+        self.num_workers = num_workers
+        self.max_length = max_length
+        self.label2id = label2id
+        self.dataset = self._get_dataset()
+
+    def _get_dataset(self):
+        return NerDataSet(self.processor, self.mode, max_length=self.max_length,
+                          label2id=self.label2id)
+
+    def get_dataloader(self):
+        if self.shuffle:
+            sampler = RandomSampler(self.dataset)
+        else:
+            sampler = None
+        if sampler is None:
+            return DataLoader(self.dataset, batch_size=self.batch_size,
+                              num_workers=self.num_workers, drop_last=self.drop_last)
+        else:
+            return DataLoader(self.dataset, batch_size=self.batch_size,
+                              num_workers=self.num_workers, drop_last=self.drop_last, sampler=sampler)
 
 
 if __name__ == "__main__":
