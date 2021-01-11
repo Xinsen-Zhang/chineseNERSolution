@@ -11,6 +11,8 @@ version		: 1.0
 import torch
 from torch import nn
 from typing import Tuple, List
+from torch.autograd import Variable
+import torch.autograd as autograd
 
 
 class WordLSTMCell(nn.Module):
@@ -20,6 +22,7 @@ class WordLSTMCell(nn.Module):
             input_size (int, optional): the size of input tensors(embedding dims after word_embeddings). Defaults to 128.
             hidden_size (int, optional): the size of hidden size(after lstm forward, the dim for cell state and hidden state). Defaults to 512.
         """
+
     def __init__(self, input_size=128, hidden_size=512):
         super(WordLSTMCell, self).__init__()
         self.input_size = input_size
@@ -71,8 +74,9 @@ class MultiInputLSTMCell(nn.Module):
             input_size (int, optional): the input size of lstm, also the embedding dim after word embeddings. Defaults to 128.
             hidden_size (int, optional): the hidden size for hidden state and cell state of lstm cell. Defaults to 512.
         """
+
     def __init__(self, input_size=128, hidden_size=512):
-        
+
         super(MultiInputLSTMCell, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -192,9 +196,94 @@ class LatticeLSTM(nn.Module):
     def random_embeddings(self):
         return torch.randn((self.word_alphabet_size, self.word_embedding_dim))
 
-    def forward(self, input, skip_input_list, hidden=None):
+    def forward(self, input: torch.Tensor, skip_input_list: List, hidden=None):
         """
         """
+        skip_input = skip_input_list[0]
+        if not self.left2right:
+            # TODO reverse skip_input_list
+            pass
+        input = input.transpose(0, 1)
+        seq_length = input.size(0)
+        batch_size = input.size(1)
+        assert batch_size == 1
+        hidden_out = []
+        memory_out = []
+        if hidden:
+            (hx, cx) = hidden
+        else:
+            hx = Variable(torch.zeros(batch_size, self.hidden_dim))
+            cx = Variable(torch.zeros(batch_size, self.hidden_dim))
+            if self.use_gpu:
+                hx = hx.cuda()
+                cx = cx.cuda()
+
+        id_list = list(range(seq_length))
+        input_c_list = init_list_of_objects(seq_length)
+        if not self.left2right:
+            id_list = list(reversed(id_list))
+        for t in id_list:  # word level index
+            (hx, cx) = self.rnn(input[t], input_c_list[t], (hx, cx))
+            hidden_out.append(hx)
+            memory_out.append(cx)
+            if skip_input[t]:
+                # word_ids, words_length
+                matched_num = len(skip_input[t][0])
+                with torch.no_grad():
+                    word_var = autograd.Variable(
+                        torch.LongTensor(skip_input[t][0]))
+                if self.use_gpu:
+                    word_var = word_var.cuda()
+                word_emb = self.word_embeddings(word_var)
+                word_emb = self.word_dropout(word_emb)
+                ct = self.word_rnn(word_emb, (hx, cx))
+                assert ct.size(0) == len(skip_input[t][1])
+                for idx in range(matched_num):
+                    length = skip_input[t][1][idx]
+                    if self.left2right:
+                        input_c_list[t+length -
+                                     1].append(ct[idx, :].unsqueeze(0))
+                    else:
+                        input_c_list[t-length +
+                                     1].append(ct[idx, :].unsqueeze(0))
+        if not self.left2right:
+            hidden_out = list(reversed(hidden_out))
+            memory_out = list(reversed(memory_out))
+        output_hidden, output_memory = torch.cat(
+            hidden_out, 0), torch.cat(memory_out, 0)
+        return output_hidden.unsqueeze(0), output_memory.unsqueeze(0)
+
+
+def init_list_of_objects(size: int = 10):
+    """init a list of lists
+
+    Args:
+        size ([int]): the length of returned list
+
+    Returns:
+        list: a list containing size empty list
+    """
+    list_of_objects = list()
+    for i in range(0, size):
+        list_of_objects.append(list())
+    return list_of_objects
+
+def convert_forward_gaz_to_backward(forward_gaz):
+    length = len(forward_gaz)
+    backward_gaz = init_list_of_objects(length)
+    for idx in range(length):
+        assert len(forward_gaz[idx]) == 2
+        num = len(forward_gaz[idx][0])
+        for idy in range(num):
+            the_id = forward_gaz[idx][0][idy]
+            the_length = forward_gaz[idx][1][idy]
+            new_pos = idx + length - 1
+            if backward_gaz[new_pos]:
+                backward_gaz[new_pos][0].append(the_id)
+                backward_gaz[new_pos][1].append(the_length)
+            else:
+                backward_gaz[new_pos] = [[the_id], [the_length]]
+    return backward_gaz
 
 
 if __name__ == "__main__":
