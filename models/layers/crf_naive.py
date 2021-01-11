@@ -1,3 +1,13 @@
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/layers/crf_naive.py
+@description	:
+@created_time	: 2021/01/11 23:19:32
+@author		: xinsen
+version		: 1.0
+'''
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

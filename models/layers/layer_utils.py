@@ -1,4 +1,14 @@
-# encoding:utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/layers/layer_utils.py
+@description	:
+@created_time	: 2021/01/11 23:20:58
+@author		: xinsen
+version		: 1.0
+'''
+
+
 import torch
 # from torch import nn
 

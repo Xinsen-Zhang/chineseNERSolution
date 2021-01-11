@@ -1,4 +1,13 @@
-# encoding utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/bilstm_crf.py
+@description	:
+@created_time	: 2021/01/11 23:22:56
+@author		: xinsen
+version		: 1.0
+'''
+
 
 from .layers.crf_naive import CRF
 from .layers.spatial_dropout import HighEfficiencySpatialDropout

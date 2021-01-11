@@ -1,4 +1,13 @@
-# encoding utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/layers/spatial_dropout.py
+@description	:
+@created_time	: 2021/01/11 23:21:12
+@author		: xinsen
+version		: 1.0
+'''
+
 import torch
 from torch import nn
 from itertools import repeat

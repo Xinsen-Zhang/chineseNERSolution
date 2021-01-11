@@ -1,4 +1,14 @@
-# encoding:utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/nn/bilstm_crf.py
+@description	:
+@created_time	: 2021/01/11 23:22:07
+@author		: xinsen
+version		: 1.0
+'''
+
+
 from ..layers.embedding_layer import EmbeddingLayer
 from ..layers.bi_lstm import BiLSTM
 from ..layers.crf import CRF

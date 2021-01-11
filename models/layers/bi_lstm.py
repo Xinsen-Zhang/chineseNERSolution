@@ -1,4 +1,14 @@
-# encoding:utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/layers/bi_lstm.py
+@description	:
+@created_time	: 2021/01/11 23:19:19
+@author		: xinsen
+version		: 1.0
+'''
+
+
 import torch
 from torch import nn
 from typing import Optional

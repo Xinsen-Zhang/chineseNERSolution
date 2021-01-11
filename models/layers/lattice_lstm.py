@@ -1,4 +1,12 @@
-# encoding:utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/layers/lattice_lstm.py
+@description	:
+@created_time	: 2021/01/11 23:18:41
+@author		: xinsen
+version		: 1.0
+'''
 
 import torch
 from torch import nn
@@ -117,6 +125,54 @@ class MultiInputLSTMCell(nn.Module):
             c_1 = temp * alpha
             h_1 = output_gate * torch.tanh(c_1)
         return h_1, c_1
+
+
+class LatticeLSTM(nn.Module):
+    def __init__(self, input_dim: int = 128, hidden_dim: int = 512,
+                 left2right: bool = False, word_p_dropout: float = 0.5,
+                 word_alphabet_size: int = 10240,
+                 word_embedding_dim: int = 256, pretrained_work_embeddings=None,
+                 fix_word_embeddings: bool = False, use_gpu: bool = True):
+        super(LatticeLSTM, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.use_gpu = use_gpu
+        self.word_alphabet_size = word_alphabet_size
+        self.word_embedding_dim = word_embedding_dim
+        self.word_embeddings = nn.Parameter(
+            word_alphabet_size, word_embedding_dim)
+        if pretrained_work_embeddings is not None:
+            self.word_embeddings.data.copy_(
+                torch.from_numpy(pretrained_work_embeddings))
+        else:
+            self.word_embeddings.data.copy_(
+                torch.from_numpy(self.random_embeddings())
+            )
+        self.fix_word_embeddings = fix_word_embeddings
+        if fix_word_embeddings:
+            self.word_embeddings.requires_grad = False  # freeze grad
+        self.p_word_dropout = word_p_dropout
+        self.word_dropout = nn.Dropout(word_p_dropout)
+        self.rnn = MultiInputLSTMCell(input_dim, hidden_dim)
+        self.word_rnn = WordLSTMCell(word_embedding_dim, hidden_dim)
+        self.left2right = left2right
+        # skip_direction = "forward" if left2right else "backward"
+        self._reset_parameters()
+        if self.use_gpu:
+            self.rnn = self.rnn.cuda()
+            self.word_dropout = self.word_dropout.cuda()
+            self.word_embeddings = self.word_embeddings.cuda()
+            self.word_rnn = self.word_rnn.cuda()
+
+    def _reset_parameters(self):
+        pass
+
+    def random_embeddings(self):
+        return torch.randn((self.word_alphabet_size, self.word_embedding_dim))
+
+    def forward(self, input, skip_input_list, hidden=None):
+        """
+        """
 
 
 if __name__ == "__main__":

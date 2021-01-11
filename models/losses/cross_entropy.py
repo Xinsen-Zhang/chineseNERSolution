@@ -1,4 +1,14 @@
-# encoding:utf-8
+#! /usr/bin/bash python
+# -*- encoding: utf-8 -*-
+'''
+@filename		: models/losses/cross_entropy.py
+@description	:
+@created_time	: 2021/01/11 23:21:44
+@author		: xinsen
+version		: 1.0
+'''
+
+
 from torch import nn
 from torch.nn import functional as F
 import torch
