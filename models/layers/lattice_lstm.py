@@ -14,6 +14,12 @@ from typing import Tuple, List
 
 
 class WordLSTMCell(nn.Module):
+    """[summary]
+
+        Args:
+            input_size (int, optional): the size of input tensors(embedding dims after word_embeddings). Defaults to 128.
+            hidden_size (int, optional): the size of hidden size(after lstm forward, the dim for cell state and hidden state). Defaults to 512.
+        """
     def __init__(self, input_size=128, hidden_size=512):
         super(WordLSTMCell, self).__init__()
         self.input_size = input_size
