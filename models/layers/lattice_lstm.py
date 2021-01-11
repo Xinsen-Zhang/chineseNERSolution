@@ -14,7 +14,7 @@ from typing import Tuple, List
 
 
 class WordLSTMCell(nn.Module):
-    """[summary]
+    """ the class of lstm cell for word level(char level)
 
         Args:
             input_size (int, optional): the size of input tensors(embedding dims after word_embeddings). Defaults to 128.
@@ -42,6 +42,15 @@ class WordLSTMCell(nn.Module):
         return h_0, c_0
 
     def forward(self, input_tensor: torch.Tensor, hx: Tuple[torch.Tensor, torch.Tensor] = None):
+        """ forward calculate output
+
+        Args:
+            input_tensor (torch.Tensor): the input tensor after word embeddings
+            hx (Tuple[torch.Tensor, torch.Tensor], optional): tuple of hidden state tensor and cell state tensor. Defaults to None.
+
+        Returns:
+            torch.Tensor: the cell state after forard process
+        """
         batch_size = input_tensor.size()[0]
         if hx is None:
             hx = self._init_hidden_and_cell_state(batch_size)
@@ -56,7 +65,14 @@ class WordLSTMCell(nn.Module):
 
 
 class MultiInputLSTMCell(nn.Module):
+    """ the class for multi input lstm cell
+
+        Args:
+            input_size (int, optional): the input size of lstm, also the embedding dim after word embeddings. Defaults to 128.
+            hidden_size (int, optional): the hidden size for hidden state and cell state of lstm cell. Defaults to 512.
+        """
     def __init__(self, input_size=128, hidden_size=512):
+        
         super(MultiInputLSTMCell, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
